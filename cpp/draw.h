@@ -18,16 +18,16 @@ struct Point
 
 struct Pixel 
 {
-    Pixel(int64_t x, int64_t y) : m_x(x), m_y(y) { }
-    int64_t m_x, m_y;
+    Pixel(uint64_t x, uint64_t y) : m_x(x), m_y(y) { }
+    uint64_t m_x, m_y;
 };
 
-int64_t Real2Pix(double x, double xmin, double xmax, int64_t width)
+int64_t Real2Pix(double x, double xmin, double xmax, size_t width)
 {
     return (x - xmin) / (xmax-xmin) * width;
 }
 
-double Pix2Real(int64_t pix, double xmin, double xmax, int64_t width)
+double Pix2Real(uint64_t pix, double xmin, double xmax, size_t width)
 {
     return (pix * (xmax - xmin))/width + xmin;
 }
@@ -47,12 +47,12 @@ struct Rect
         , m_ymax(coord)
     {}
     
-    Pixel Real2Pix(Point in, int64_t width, int64_t height)
+    Pixel Real2Pix(Point in, size_t width, size_t height)
     {
         return Pixel(::Real2Pix(in.m_x, m_xmin, m_xmax, width),
                      ::Real2Pix(in.m_y, m_ymin, m_ymax, height));
     }
-    Point Pix2Real(Pixel in, int64_t width, int64_t height)
+    Point Pix2Real(Pixel in, size_t width, size_t height)
     {
         return Point(::Pix2Real(in.m_x, m_xmin, m_xmax, width),
                      ::Pix2Real(in.m_y, m_ymin, m_ymax, height));

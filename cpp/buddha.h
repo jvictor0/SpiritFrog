@@ -5,6 +5,9 @@
 #include <thread>
 #include <time.h>
 #include "CImg-1.6.8_pre110615/CImg.h"
+#include <unistd.h>
+#include <termios.h>
+
 
 struct BuddhabrotParams
 {
@@ -123,32 +126,62 @@ struct RGB
     RGB(unsigned char r, unsigned char g, unsigned char b)
         : m_r(r), m_g(g), m_b(b) { }
     RGB(double r, double g, double b)
-        : m_r(255 *r), m_g(255 * g), m_b(255 * b) { }
+        : m_r(255 * std::max(0.0,std::min(1.0,r)))
+        , m_g(255 * std::max(0.0,std::min(1.0,g)))
+        , m_b(255 * std::max(0.0,std::min(1.0,b))) 
+    { }
     
     unsigned char m_r, m_g, m_b;
 };
 
 struct HistomixParams
 {
-    std::vector<uint32_t> m_maxes;
+    HistomixParams(Array3d<uint32_t>& in) : m_mixmat(in.m_z), m_toggle(in.m_z)
+    {
+        m_maxes.clear();
+        ChannelMaxs(in, m_maxes);
+        
+        for (size_t i = 0; i < m_mixmat.size(); ++i)
+        {
+            m_toggle[i] = false;
+            for (size_t j = 0; j < 3; ++j)
+            {
+                m_mixmat[i].push_back(i==j?1:0);
+            }
+        }
+    }
     void Init(Array3d<uint32_t>& in)
     {
-        ChannelMaxs(in, m_maxes);
-        assert (m_maxes.size() == 1 || m_maxes.size() == 3);
     }
     RGB Get(uint32_t* channels)
     {
-        return RGB(((double)channels[0])/m_maxes[0], 
-                   ((double)channels[1])/m_maxes[1],
-                   ((double)channels[2])/m_maxes[2]);
+        double result[3];
+        for (int i = 0; i < 3; ++i)
+        {
+            result[i] = 0;
+        }
+        for (size_t i = 0; i < m_mixmat.size(); ++i)
+        {
+            if (!m_toggle[i])
+            {
+                for (int j = 0; j < 3; ++j)
+                {
+                    result[j] += m_mixmat[i][j] * ((double)channels[i]) / m_maxes[i];
+                }
+            }
+        }
+        return RGB(result[0], result[1], result[2]);
     }
+
+    std::vector<uint32_t> m_maxes;
+    std::vector<std::vector<double>> m_mixmat;
+    std::vector<bool> m_toggle;
 };
 
 template<typename Params>
 void Draw(Array3d<uint32_t>& in, cimg_library::CImg<unsigned char>& out, Params& params)
 {
     params.Init(in);
-    std::cout << "init";
     for (size_t i = 0; i < in.m_x; ++i)
     {
         for (size_t j = 0; j < in.m_y; ++j)
@@ -189,18 +222,50 @@ void Buddhabrot1T()
     BuddhabrotParams params;
     Rect rect(2.0);
     std::cout << "generating historgram" << std::endl;
-    BuddhaAlgorithm(8, data, its, params, rect, 5);
+    BuddhaAlgorithm(8, data, its, params, rect, 10);
     std::cout << "done with histogram" << std::endl;
 
-    cimg_library::CImg<unsigned char> img(width, width, 1, 3, 0);
-    
-    HistomixParams hmp;
+    cimg_library::CImg<unsigned char> img(width, width, 1, 3, 0);    
+    HistomixParams hmp(data);
     Draw(data, img, hmp);
-    
     cimg_library::CImgDisplay disp(img, "buddha");
+    int mixer = 0;
+    int color = 0;
     while (!disp.is_closed())
     {
-        sleep(1);
+        std::string str;
+        std::cin >> str;
+        for (size_t i = 0; i < str.size(); ++i)
+        {
+            switch (str[i])
+            {
+                case '0': mixer = 0; break;
+                case '1': mixer = 1; break;
+                case '2': mixer = 2; break;
+                case 'r': color = 0; break;
+                case 'g': color = 1; break;
+                case 'b': color = 2; break;
+                case '+': hmp.m_mixmat[mixer][color] += 0.1; break;
+                case '-': hmp.m_mixmat[mixer][color] -= 0.1; break;
+                case 't': hmp.m_toggle[mixer] = !hmp.m_toggle[mixer]; break;
+                default: break;
+            }
+        }
+        std::cout << "current " << mixer << "," << color << std::endl;
+        for (size_t i = 0; i < hmp.m_mixmat.size(); ++i)
+        {
+            std::cout << (hmp.m_toggle[i] ? "(OFF)  " : "(ON) ");
+            for (size_t j = 0; j < 3; ++j)
+            {
+                std::cout << hmp.m_mixmat[i][j] << " ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+        std::cout << "drawing" << std::endl;        
+        Draw(data, img, hmp);
+        img.display(disp);
     }
     img.save_bmp("/vagrant/cppman.bmp");
+
 }

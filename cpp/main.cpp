@@ -9,11 +9,6 @@
 
 int main()
 {
-    srand (time(NULL));
-    std::vector<uint64_t> its;
-    its.push_back(100);
-    its.push_back(500);
-    its.push_back(2000);
-    GenerateAndSaveHistogram(1024, 4, its, 10, "buddy.a");
+    Buddhabrot1T();
     return 0;
 }

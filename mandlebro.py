@@ -63,13 +63,22 @@ class Buddhabrot:
 
     def pickle(self, filename):
         cPickle.dump(self, open(filename, "wb"))
+
+    def unpickle(self, filename):
+        self.data = np.load(filename)
+        self.width = len(self.data)
+        self.height = len(self.data[0])
+        print self.width, self.height
+        
                     
     def draw(self):
         print "converting buddha bro to draw"
         d = draw.Draw(self.width, self.height, self.rect)
+        print self.width, self.height
         scale = [0,0,0]
-        for i in xrange(3):            
-            scale[i] = 255.0 / max([self.data[x,y,i] for x in xrange(self.width) for y in xrange(self.height)])
+        for i in xrange(3):    
+            print "max",i
+            scale[i] = 255.0 / max(self.data[x,y,i] for x in xrange(self.width) for y in xrange(self.height))
         scale[0] = scale[0]/2
         scale[1] = scale[1]
         print "max"
@@ -99,9 +108,10 @@ if __name__ == '__main__':
     bigfloat.setcontext(bigfloat.precision(52))
     #man = Mandlebrot(100)
     #d = draw.Draw(1024, 1024, draw.FloatRect(2.0))
-    bud = MultiBuddhabrot(8, 10, [20,200,2000], 1024, 1024)
+#    bud = MultiBuddhabrot(8, 10, [20,200,2000], 1024, 1024)
 #    bud.pickle("man.pck")
-#    bud = cPickle.load(open("man2.pck", "rb"))
+    bud = cPickle.load(open("man.pck", "rb"))
+    bud.unpickle("man.npy")
     d = bud.draw()
     d.save("/vagrant/man.png")
     

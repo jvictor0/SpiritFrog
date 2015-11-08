@@ -65,9 +65,12 @@ void BuddhaAlgorithmThread(Array3d<uint32_t>& data, std::vector<uint64_t>& its, 
                 for (uint64_t k = 0; k < boxes.size(); ++k)
                 {
                     Pixel p = rect.Real2Pix(boxes[k], data.m_x, data.m_y);                     
-                    for (uint64_t j = minj; j < its.size(); ++j)
-                    {                    
-                        data.AtomicIncrement(p.m_x, p.m_y, j);
+                    if (p.m_x >= 0 && p.m_y >= 0 && p.m_x < data.m_x && p.m_y < data.m_y)
+                    {
+                        for (uint64_t j = minj; j < its.size(); ++j)
+                        {                    
+                            data.AtomicIncrement(p.m_x, p.m_y, j);
+                        }
                     }
                 }
                 break;

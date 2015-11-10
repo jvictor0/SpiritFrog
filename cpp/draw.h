@@ -123,6 +123,30 @@ struct Array3d
             assert (false);
         }
     }
+    Array3d* SubArray(size_t x, size_t width, size_t y, size_t height)
+    {
+        Array3d* result = new Array3d(x,y,m_z);
+        for (size_t i = 0; i < height; ++i)
+        {
+            memcpy(&(result->Get(i,0,0)), &Get(i+y,x,0), sizeof(T) * m_z * height);
+        }
+        return result;
+    }
+    Array3d Coallesce(size_t amt)
+    {
+        Array3d* result = new Array3d(m_x/amt,m_y/amt,m_z);
+        for (size_t i = 0; i < m_x; ++i)
+        {
+            for (size_t j = 0; j < m_y; ++j)
+            {
+                for (size_t k = 0; k < m_z; ++k)
+                {
+                    result->Get(i/amt, j/amt, k) += Get(i,j,k);
+                }
+            }
+        }        
+        return result;
+    }
 
     void Serialize(const char* filename)
     {

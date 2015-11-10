@@ -140,6 +140,10 @@ struct HistomixParams
     {
         m_maxes.clear();
         ChannelMaxs(in, m_maxes);
+        m_xstart = 0;
+        m_ystart = 0;
+        m_xend = in.m_x;
+        m_yend = in.m_y;
         
         for (size_t i = 0; i < m_mixmat.size(); ++i)
         {
@@ -173,22 +177,51 @@ struct HistomixParams
         return RGB(result[0], result[1], result[2]);
     }
 
+    void Zoom(int64_t amt)
+    {
+        if (static_cast<int64_t>(m_xend - m_xstart) > 2 * amt
+            && static_cast<int64_t>(m_yend - m_ystart) > 2 * amt)
+        {
+            m_yend -= amt; m_xend -= amt; m_ystart += amt; m_xstart += amt;
+        }
+    }
+    void Move(int64_t x, int64_t y)
+    {
+        if (m_xstart + x >= 0)
+        {
+            m_xend += x; m_xstart += x;
+        }
+        if (m_ystart + y >= 0)
+        {
+            m_yend += y; m_ystart += y;
+        }
+    }
+    void UnZoom(int64_t amt)
+    {
+        if (static_cast<int64_t>(m_xstart) >= amt && static_cast<int64_t>(m_ystart) >= amt)
+        {
+            m_yend += amt; m_xend += amt; m_ystart -= amt; m_xstart -= amt;
+        }
+    }
+
     std::vector<uint32_t> m_maxes;
     std::vector<std::vector<double>> m_mixmat;
     std::vector<bool> m_toggle;
+    size_t m_xstart, m_xend, m_ystart, m_yend;
 };
 
 template<typename Params>
 void Draw(Array3d<uint32_t>& in, cimg_library::CImg<unsigned char>& out, Params& params)
 {
     params.Init(in);
-    for (size_t i = 0; i < in.m_x; ++i)
+    out.fill(0);
+    for (size_t i = params.m_xstart; i < params.m_xend; ++i)
     {
-        for (size_t j = 0; j < in.m_y; ++j)
+        for (size_t j = params.m_ystart; j < params.m_yend; ++j)
         {
             RGB color = params.Get(&in.Get(i,j,0));
             const unsigned char colarr[] = { color.m_r, color.m_g, color.m_b };
-            out.draw_point(i, j, colarr);
+            out.draw_point(i - params.m_xstart, j - params.m_ystart, colarr);
         }
     }    
 }
@@ -216,22 +249,44 @@ void Buddhabrot1T()
     size_t width = 1024;
     std::vector<uint64_t> its;
     its.push_back(100);
-    its.push_back(500);
-    its.push_back(2000);
+    its.push_back(1000);
+    its.push_back(20000);
     Array3d<uint32_t> data(width, width, its.size());
     BuddhabrotParams params;
     Rect rect(2.0);
     std::cout << "generating historgram" << std::endl;
-    BuddhaAlgorithm(8, data, its, params, rect, 10);
+    BuddhaAlgorithm(8, data, its, params, rect, 30);
     std::cout << "done with histogram" << std::endl;
+
+    data.Serialize("buddy.a");
+
+    std::cout << "done with serialiing" << std::endl;
 
     cimg_library::CImg<unsigned char> img(width, width, 1, 3, 0);    
     HistomixParams hmp(data);
+    hmp.m_mixmat[0][0]=0;
+    hmp.m_mixmat[1][1]=0;
+    hmp.m_mixmat[2][2]=0;
+
+    hmp.m_mixmat[0][0] = 207.0/255.0;
+    hmp.m_mixmat[0][1] = 181.0/255.0;
+    hmp.m_mixmat[0][2] = 59.0/255.0;
+
+    hmp.m_mixmat[1][1] = 0.2;
+    hmp.m_mixmat[1][2] = 0.2;
+
+    hmp.m_mixmat[2][0] = 150.0/255.0;
+    hmp.m_mixmat[2][2] = 260.0/255.0;
+    
+    hmp.m_xstart = 104;
+    hmp.m_xend = 531;
+    hmp.m_ystart = 420;
+    hmp.m_yend = 764;
     Draw(data, img, hmp);
     cimg_library::CImgDisplay disp(img, "buddha");
     int mixer = 0;
     int color = 0;
-    while (!disp.is_closed())
+    while (true)
     {
         std::string str;
         std::cin >> str;
@@ -248,9 +303,16 @@ void Buddhabrot1T()
                 case '+': hmp.m_mixmat[mixer][color] += 0.1; break;
                 case '-': hmp.m_mixmat[mixer][color] -= 0.1; break;
                 case 't': hmp.m_toggle[mixer] = !hmp.m_toggle[mixer]; break;
+                case 'a': hmp.Move(-10,0); break;
+                case 's': hmp.Move(0, -10); break;
+                case 'd': hmp.Move(10, 0); break;
+                case 'w': hmp.Move(0, 10); break;
+                case 'z': hmp.Zoom(10); break;
+                case 'x': hmp.UnZoom(10); break;
                 default: break;
             }
         }
+        std::cout << hmp.m_xstart << ", " << hmp.m_xend << ", " << hmp.m_ystart << ", " << hmp.m_yend << std::endl;
         std::cout << "current " << mixer << "," << color << std::endl;
         for (size_t i = 0; i < hmp.m_mixmat.size(); ++i)
         {
@@ -267,5 +329,5 @@ void Buddhabrot1T()
         img.display(disp);
     }
     img.save_bmp("/vagrant/cppman.bmp");
-
 }
+///94, 521, 420, 764
